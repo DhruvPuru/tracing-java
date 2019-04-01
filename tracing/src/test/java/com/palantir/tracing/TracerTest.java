@@ -313,6 +313,46 @@ public final class TracerTest {
         assertThat(Tracer.hasTraceId()).isEqualTo(false);
     }
 
+    @Test
+    public void testSimpleDetachedTrace() {
+        assertThat(Tracer.hasTraceId()).isEqualTo(false);
+        Tracer.subscribe("1", observer1);
+        String operation = "operation";
+        DetachedSpan detached = Tracer.startDetachedSpan(operation);
+        try {
+            assertThat(Tracer.hasTraceId())
+                    .describedAs("Detached spans should not set thread state")
+                    .isFalse();
+        } finally {
+            detached.complete();
+        }
+        verify(observer1).consume(spanCaptor.capture());
+        assertThat(spanCaptor.getValue().getOperation()).isEqualTo(operation);
+        Tracer.unsubscribe("1");
+    }
+
+    @Test
+    public void testDetachedTraceAppliedToThreadState() {
+        assertThat(Tracer.hasTraceId()).isEqualTo(false);
+        Tracer.subscribe("1", observer1);
+        String operation1 = "operation";
+        String operation2 = "attached";
+        DetachedSpan detached = Tracer.startDetachedSpan(operation1);
+        try {
+            assertThat(Tracer.hasTraceId()).isFalse();
+            try (SpanToken ignored = detached.startSpan(operation2)) {
+                assertThat(Tracer.hasTraceId()).isTrue();
+            }
+            verify(observer1).consume(spanCaptor.capture());
+            assertThat(spanCaptor.getValue().getOperation()).isEqualTo(operation2);
+            assertThat(Tracer.hasTraceId()).isFalse();
+        } finally {
+            detached.complete();
+        }
+        assertThat(Tracer.hasTraceId()).isFalse();
+        Tracer.unsubscribe("1");
+    }
+
     private static Span startAndCompleteSpan() {
         Tracer.startSpan("operation");
         return Tracer.completeSpan().get();
