@@ -135,12 +135,8 @@ public final class Tracer {
 
     private static final class DefaultDetachedSpan implements DetachedSpan {
 
-        private static final SpanToken DEFAULT_TOKEN = () -> {
-            // Complete the current span.
-            Tracer.fastCompleteSpan();
-            // Clear thread state, which fastCompleteSpan has not done because a base span has been applied.
-            Tracer.clearCurrentTrace();
-        };
+        // Complete the current span.
+        private static final SpanToken DEFAULT_TOKEN = Tracer::fastCompleteSpan;
         private static final SpanToken NOP_TOKEN = () -> { };
 
         private final AtomicBoolean completed = new AtomicBoolean();
@@ -170,7 +166,6 @@ public final class Tracer {
             }
             Trace maybeCurrentTrace = currentTrace.get();
             Trace trace = new Trace(sampled, traceId);
-            trace.push(openSpan);
             setTrace(trace);
             Tracer.startSpan(operationName, type);
             return maybeCurrentTrace == null
