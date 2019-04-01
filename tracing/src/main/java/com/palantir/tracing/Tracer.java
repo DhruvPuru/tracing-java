@@ -160,7 +160,6 @@ public final class Tracer {
 
         // Complete the current span.
         private static final SpanToken DEFAULT_TOKEN = Tracer::fastCompleteSpan;
-        private static final SpanToken NOP_TOKEN = () -> { };
 
         private final AtomicBoolean completed = new AtomicBoolean();
         private final boolean sampled;
@@ -181,10 +180,7 @@ public final class Tracer {
 
         @Override
         public SpanToken startSpanOnCurrentThread(String operationName, SpanType type) {
-            if (completed.get()) {
-                log.warn("{} has already completed", SafeArg.of("detachedSpan", this));
-                return NOP_TOKEN;
-            }
+            warnIfCompleted("startSpanOnCurrentThread");
             Trace maybeCurrentTrace = currentTrace.get();
             Trace trace = new Trace(sampled, traceId);
             setTrace(trace);
@@ -195,15 +191,14 @@ public final class Tracer {
 
         @Override
         public DetachedSpan startDetachedSpan(String operation, SpanType type) {
+            warnIfCompleted("startDetachedSpan");
             return new DefaultDetachedSpan(operation, type, traceId, Optional.of(openSpan.getSpanId()), sampled);
         }
 
         @Override
         public void complete() {
-            if (completed.compareAndSet(false, true)) {
-                if (sampled) {
-                    Tracer.notifyObservers(toSpan(openSpan, Collections.emptyMap(), traceId));
-                }
+            if (completed.compareAndSet(false, true) && sampled) {
+                Tracer.notifyObservers(toSpan(openSpan, Collections.emptyMap(), traceId));
             }
         }
 
@@ -211,6 +206,14 @@ public final class Tracer {
         public String toString() {
             return "DefaultDetachedSpan{completed=" + completed + ", sampled="
                     + sampled + ", traceId='" + traceId + '\'' + ", openSpan=" + openSpan + '}';
+        }
+
+        private void warnIfCompleted(String feature) {
+            if (completed.get()) {
+                log.warn("{} called after span {} completed",
+                        SafeArg.of("feature", feature),
+                        SafeArg.of("detachedSpan", this));
+            }
         }
 
         private static final class TraceRestoringSpanToken implements SpanToken {
