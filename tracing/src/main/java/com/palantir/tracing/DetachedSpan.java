@@ -16,6 +16,7 @@
 
 package com.palantir.tracing;
 
+import com.google.errorprone.annotations.MustBeClosed;
 import com.palantir.tracing.api.SpanType;
 
 /**
@@ -28,12 +29,14 @@ public interface DetachedSpan {
      * Equivalent to {@link Tracer#startSpan(String, SpanType)}, but using this {@link DetachedSpan}
      * as the parent instead of thread state.
      */
+    @MustBeClosed
     SpanToken startSpanOnCurrentThread(String operationName, SpanType type);
 
     /**
      * Equivalent to {@link Tracer#startSpan(String)}, but using this {@link DetachedSpan} as the parent instead
      * of thread state.
      */
+    @MustBeClosed
     default SpanToken startSpanOnCurrentThread(String operationName) {
         return startSpanOnCurrentThread(operationName, SpanType.LOCAL);
     }
