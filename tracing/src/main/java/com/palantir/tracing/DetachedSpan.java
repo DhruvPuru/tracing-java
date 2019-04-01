@@ -28,14 +28,14 @@ public interface DetachedSpan {
      * Equivalent to {@link Tracer#startSpan(String, SpanType)}, but using this {@link DetachedSpan}
      * as the parent instead of thread state.
      */
-    SpanToken startSpan(String operationName, SpanType type);
+    SpanToken startSpanOnCurrentThread(String operationName, SpanType type);
 
     /**
      * Equivalent to {@link Tracer#startSpan(String)}, but using this {@link DetachedSpan} as the parent instead
      * of thread state.
      */
-    default SpanToken startSpan(String operationName) {
-        return startSpan(operationName, SpanType.LOCAL);
+    default SpanToken startSpanOnCurrentThread(String operationName) {
+        return startSpanOnCurrentThread(operationName, SpanType.LOCAL);
     }
 
     /**

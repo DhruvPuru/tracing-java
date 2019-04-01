@@ -340,7 +340,7 @@ public final class TracerTest {
         DetachedSpan detached = Tracer.startDetachedSpan(operation1);
         try {
             assertThat(Tracer.hasTraceId()).isFalse();
-            try (SpanToken ignored = detached.startSpan(operation2)) {
+            try (SpanToken ignored = detached.startSpanOnCurrentThread(operation2)) {
                 assertThat(Tracer.hasTraceId()).isTrue();
             }
             verify(observer1).consume(spanCaptor.capture());
@@ -359,7 +359,7 @@ public final class TracerTest {
         DetachedSpan detached = Tracer.startDetachedSpan("detached");
         Tracer.startSpan("standard");
         String standardTraceId = Tracer.getTraceId();
-        try (SpanToken ignored = detached.startSpan("operation")) {
+        try (SpanToken ignored = detached.startSpanOnCurrentThread("operation")) {
             assertThat(Tracer.getTraceId())
                     .describedAs("The detached span should have a different trace")
                     .isNotEqualTo(standardTraceId);

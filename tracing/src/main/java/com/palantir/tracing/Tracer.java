@@ -163,7 +163,7 @@ public final class Tracer {
         }
 
         @Override
-        public SpanToken startSpan(String operationName, SpanType type) {
+        public SpanToken startSpanOnCurrentThread(String operationName, SpanType type) {
             if (completed.get()) {
                 log.warn("{} has already completed", SafeArg.of("detachedSpan", this));
                 return NOP_TOKEN;
