@@ -372,6 +372,22 @@ public final class TracerTest {
         assertThat(Tracer.hasTraceId()).isEqualTo(false);
     }
 
+    @Test
+    public void testDetachedTraceBuildsUponExistingTrace() {
+        assertThat(Tracer.hasTraceId()).isEqualTo(false);
+        // Standard span starts first, so the detached tracer should build from the current threads state.
+        Tracer.startSpan("standard");
+        DetachedSpan detached = Tracer.startDetachedSpan("detached");
+        String standardTraceId = Tracer.getTraceId();
+        try (SpanToken ignored = detached.startSpanOnCurrentThread("operation")) {
+            assertThat(Tracer.getTraceId()).isEqualTo(standardTraceId);
+        }
+        assertThat(Tracer.getTraceId()).isEqualTo(standardTraceId);
+        Tracer.fastCompleteSpan();
+        detached.complete();
+        assertThat(Tracer.hasTraceId()).isEqualTo(false);
+    }
+
     private static Span startAndCompleteSpan() {
         Tracer.startSpan("operation");
         return Tracer.completeSpan().get();
