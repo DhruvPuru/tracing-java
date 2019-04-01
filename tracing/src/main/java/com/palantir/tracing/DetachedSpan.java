@@ -38,6 +38,17 @@ public interface DetachedSpan {
         return startSpanOnCurrentThread(operationName, SpanType.LOCAL);
     }
 
+    /** Starts a child {@link DetachedSpan} using this instance as the parent. */
+    DetachedSpan startDetachedSpan(String operation, SpanType type);
+
+    /**
+     * Starts a child {@link DetachedSpan} using this instance as the parent.
+     * Equivalent to {@link #startSpanOnCurrentThread(String, SpanType)} using {@link SpanType#LOCAL}.
+     */
+    default DetachedSpan startDetachedSpan(String operation) {
+        return startDetachedSpan(operation, SpanType.LOCAL);
+    }
+
     /**
      * Completes this span. After complete is invoked, other methods are not expected to produce spans, but
      * they must not throw either in order to avoid confusing failures.

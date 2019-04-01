@@ -130,7 +130,30 @@ public final class Tracer {
      * Like {@link #startSpan(String, SpanType)}, but does not set or modify tracing thread state.
      */
     public static DetachedSpan startDetachedSpan(String operation, SpanType type) {
-        return new DefaultDetachedSpan(operation, type);
+        Trace maybeCurrentTrace = currentTrace.get();
+        String traceId = maybeCurrentTrace != null
+                ? maybeCurrentTrace.getTraceId() : Tracers.randomId();
+        boolean sampled = maybeCurrentTrace != null
+                ? maybeCurrentTrace.isObservable() : sampler.sample();
+        return new DefaultDetachedSpan(operation, type, traceId, getParentSpanId(maybeCurrentTrace), sampled);
+    }
+
+    /**
+     * Opens a new {@link SpanType#LOCAL LOCAL} detached span for this thread's call trace,
+     * labeled with the provided operation.
+     */
+    public static DetachedSpan startDetachedSpan(String operation) {
+        return startDetachedSpan(operation, SpanType.LOCAL);
+    }
+
+    private static Optional<String> getParentSpanId(@Nullable Trace trace) {
+        if (trace != null) {
+            Optional<OpenSpan> maybeOpenSpan = trace.pop();
+            if (maybeOpenSpan.isPresent()) {
+                return Optional.of(maybeOpenSpan.get().getSpanId());
+            }
+        }
+        return Optional.empty();
     }
 
     private static final class DefaultDetachedSpan implements DetachedSpan {
@@ -144,14 +167,12 @@ public final class Tracer {
         private final String traceId;
         private final OpenSpan openSpan;
 
-        DefaultDetachedSpan(String operation, SpanType type) {
-            Trace maybeCurrentTrace = currentTrace.get();
-            traceId = maybeCurrentTrace != null
-                    ? maybeCurrentTrace.getTraceId() : Tracers.randomId();
-            sampled = maybeCurrentTrace != null
-                    ? maybeCurrentTrace.isObservable() : sampler.sample();
-            openSpan = OpenSpan.builder()
-                    .parentSpanId(getParentSpanId(maybeCurrentTrace))
+        DefaultDetachedSpan(
+                String operation, SpanType type, String traceId, Optional<String> parentSpanId, boolean sampled) {
+            this.traceId = traceId;
+            this.sampled = sampled;
+            this.openSpan = OpenSpan.builder()
+                    .parentSpanId(parentSpanId)
                     .spanId(Tracers.randomId())
                     .operation(operation)
                     .type(type)
@@ -173,22 +194,17 @@ public final class Tracer {
         }
 
         @Override
+        public DetachedSpan startDetachedSpan(String operation, SpanType type) {
+            return new DefaultDetachedSpan(operation, type, traceId, Optional.of(openSpan.getSpanId()), sampled);
+        }
+
+        @Override
         public void complete() {
             if (completed.compareAndSet(false, true)) {
                 if (sampled) {
                     Tracer.notifyObservers(toSpan(openSpan, Collections.emptyMap(), traceId));
                 }
             }
-        }
-
-        private static Optional<String> getParentSpanId(@Nullable Trace trace) {
-            if (trace != null) {
-                Optional<OpenSpan> maybeOpenSpan = trace.pop();
-                if (maybeOpenSpan.isPresent()) {
-                    return Optional.of(maybeOpenSpan.get().getSpanId());
-                }
-            }
-            return Optional.empty();
         }
 
         @Override
@@ -211,14 +227,6 @@ public final class Tracer {
                 Tracer.setTrace(original);
             }
         }
-    }
-
-    /**
-     * Opens a new {@link SpanType#LOCAL LOCAL} detached span for this thread's call trace,
-     * labeled with the provided operation.
-     */
-    public static DetachedSpan startDetachedSpan(String operation) {
-        return startDetachedSpan(operation, SpanType.LOCAL);
     }
 
     private static OpenSpan startSpanInternal(String operation, SpanType type) {
