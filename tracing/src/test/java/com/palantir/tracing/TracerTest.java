@@ -353,6 +353,25 @@ public final class TracerTest {
         Tracer.unsubscribe("1");
     }
 
+    @Test
+    public void testDetachedTraceRestoresTrace() {
+        assertThat(Tracer.hasTraceId()).isEqualTo(false);
+        DetachedSpan detached = Tracer.startDetachedSpan("detached");
+        Tracer.startSpan("standard");
+        String standardTraceId = Tracer.getTraceId();
+        try (SpanToken ignored = detached.startSpan("operation")) {
+            assertThat(Tracer.getTraceId())
+                    .describedAs("The detached span should have a different trace")
+                    .isNotEqualTo(standardTraceId);
+        }
+        assertThat(Tracer.getTraceId())
+                .describedAs("The detached span restores the original trace")
+                .isEqualTo(standardTraceId);
+        Tracer.fastCompleteSpan();
+        detached.complete();
+        assertThat(Tracer.hasTraceId()).isEqualTo(false);
+    }
+
     private static Span startAndCompleteSpan() {
         Tracer.startSpan("operation");
         return Tracer.completeSpan().get();

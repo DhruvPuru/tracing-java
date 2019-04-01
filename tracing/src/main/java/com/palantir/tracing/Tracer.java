@@ -22,6 +22,7 @@ import static com.palantir.logsafe.Preconditions.checkState;
 
 import com.google.common.base.Strings;
 import com.google.errorprone.annotations.CheckReturnValue;
+import com.palantir.logsafe.Preconditions;
 import com.palantir.logsafe.SafeArg;
 import com.palantir.logsafe.UnsafeArg;
 import com.palantir.tracing.api.OpenSpan;
@@ -161,18 +162,19 @@ public final class Tracer {
                     .build();
         }
 
-        /* n.b. This implementation does not preserve and replace spans that exist when the operation is started. */
         @Override
-        public SpanToken startSpan(String operationName) {
+        public SpanToken startSpan(String operationName, SpanType type) {
             if (completed.get()) {
                 log.warn("{} has already completed", SafeArg.of("detachedSpan", this));
                 return NOP_TOKEN;
             }
+            Trace maybeCurrentTrace = currentTrace.get();
             Trace trace = new Trace(sampled, traceId);
             trace.push(openSpan);
             setTrace(trace);
-            Tracer.startSpan(operationName);
-            return DEFAULT_TOKEN;
+            Tracer.startSpan(operationName, type);
+            return maybeCurrentTrace == null
+                    ? DEFAULT_TOKEN : new TraceRestoringSpanToken(maybeCurrentTrace);
         }
 
         @Override
@@ -198,6 +200,21 @@ public final class Tracer {
         public String toString() {
             return "DefaultDetachedSpan{completed=" + completed + ", sampled="
                     + sampled + ", traceId='" + traceId + '\'' + ", openSpan=" + openSpan + '}';
+        }
+
+        private static final class TraceRestoringSpanToken implements SpanToken {
+
+            private final Trace original;
+
+            TraceRestoringSpanToken(Trace original) {
+                this.original = Preconditions.checkNotNull(original, "Expected an original trace instance");
+            }
+
+            @Override
+            public void close() {
+                DEFAULT_TOKEN.close();
+                Tracer.setTrace(original);
+            }
         }
     }
 

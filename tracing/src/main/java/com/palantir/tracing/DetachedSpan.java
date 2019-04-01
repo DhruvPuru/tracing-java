@@ -16,6 +16,8 @@
 
 package com.palantir.tracing;
 
+import com.palantir.tracing.api.SpanType;
+
 /**
  * Span operation which is not bound to thread state, and can measure operations which
  * themselves aren't bound to individual threads.
@@ -23,10 +25,18 @@ package com.palantir.tracing;
 public interface DetachedSpan {
 
     /**
+     * Equivalent to {@link Tracer#startSpan(String, SpanType)}, but using this {@link DetachedSpan}
+     * as the parent instead of thread state.
+     */
+    SpanToken startSpan(String operationName, SpanType type);
+
+    /**
      * Equivalent to {@link Tracer#startSpan(String)}, but using this {@link DetachedSpan} as the parent instead
      * of thread state.
      */
-    SpanToken startSpan(String operationName);
+    default SpanToken startSpan(String operationName) {
+        return startSpan(operationName, SpanType.LOCAL);
+    }
 
     /**
      * Completes this span. After complete is invoked, other methods are not expected to produce spans, but
