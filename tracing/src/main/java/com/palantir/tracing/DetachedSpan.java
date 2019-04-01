@@ -30,26 +30,26 @@ public interface DetachedSpan {
      * as the parent instead of thread state.
      */
     @MustBeClosed
-    SpanToken startSpanOnCurrentThread(String operationName, SpanType type);
+    SpanToken attach(String operationName, SpanType type);
 
     /**
      * Equivalent to {@link Tracer#startSpan(String)}, but using this {@link DetachedSpan} as the parent instead
      * of thread state.
      */
     @MustBeClosed
-    default SpanToken startSpanOnCurrentThread(String operationName) {
-        return startSpanOnCurrentThread(operationName, SpanType.LOCAL);
+    default SpanToken attach(String operationName) {
+        return attach(operationName, SpanType.LOCAL);
     }
 
     /** Starts a child {@link DetachedSpan} using this instance as the parent. */
-    DetachedSpan startDetachedSpan(String operation, SpanType type);
+    DetachedSpan detach(String operation, SpanType type);
 
     /**
      * Starts a child {@link DetachedSpan} using this instance as the parent.
-     * Equivalent to {@link #startSpanOnCurrentThread(String, SpanType)} using {@link SpanType#LOCAL}.
+     * Equivalent to {@link #attach(String, SpanType)} using {@link SpanType#LOCAL}.
      */
-    default DetachedSpan startDetachedSpan(String operation) {
-        return startDetachedSpan(operation, SpanType.LOCAL);
+    default DetachedSpan detach(String operation) {
+        return detach(operation, SpanType.LOCAL);
     }
 
     /**

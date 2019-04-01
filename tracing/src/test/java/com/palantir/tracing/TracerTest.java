@@ -318,7 +318,7 @@ public final class TracerTest {
         assertThat(Tracer.hasTraceId()).isEqualTo(false);
         Tracer.subscribe("1", observer1);
         String operation = "operation";
-        DetachedSpan detached = Tracer.startDetachedSpan(operation);
+        DetachedSpan detached = Tracer.detach(operation);
         try {
             assertThat(Tracer.hasTraceId())
                     .describedAs("Detached spans should not set thread state")
@@ -337,10 +337,10 @@ public final class TracerTest {
         Tracer.subscribe("1", observer1);
         String operation1 = "operation";
         String operation2 = "attached";
-        DetachedSpan detached = Tracer.startDetachedSpan(operation1);
+        DetachedSpan detached = Tracer.detach(operation1);
         try {
             assertThat(Tracer.hasTraceId()).isFalse();
-            try (SpanToken ignored = detached.startSpanOnCurrentThread(operation2)) {
+            try (SpanToken ignored = detached.attach(operation2)) {
                 assertThat(Tracer.hasTraceId()).isTrue();
             }
             verify(observer1).consume(spanCaptor.capture());
@@ -356,10 +356,10 @@ public final class TracerTest {
     @Test
     public void testDetachedTraceRestoresTrace() {
         assertThat(Tracer.hasTraceId()).isEqualTo(false);
-        DetachedSpan detached = Tracer.startDetachedSpan("detached");
+        DetachedSpan detached = Tracer.detach("detached");
         Tracer.startSpan("standard");
         String standardTraceId = Tracer.getTraceId();
-        try (SpanToken ignored = detached.startSpanOnCurrentThread("operation")) {
+        try (SpanToken ignored = detached.attach("operation")) {
             assertThat(Tracer.getTraceId())
                     .describedAs("The detached span should have a different trace")
                     .isNotEqualTo(standardTraceId);
@@ -377,9 +377,9 @@ public final class TracerTest {
         assertThat(Tracer.hasTraceId()).isEqualTo(false);
         // Standard span starts first, so the detached tracer should build from the current threads state.
         Tracer.startSpan("standard");
-        DetachedSpan detached = Tracer.startDetachedSpan("detached");
+        DetachedSpan detached = Tracer.detach("detached");
         String standardTraceId = Tracer.getTraceId();
-        try (SpanToken ignored = detached.startSpanOnCurrentThread("operation")) {
+        try (SpanToken ignored = detached.attach("operation")) {
             assertThat(Tracer.getTraceId()).isEqualTo(standardTraceId);
         }
         assertThat(Tracer.getTraceId()).isEqualTo(standardTraceId);

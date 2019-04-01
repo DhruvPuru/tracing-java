@@ -129,7 +129,7 @@ public final class Tracer {
     /**
      * Like {@link #startSpan(String, SpanType)}, but does not set or modify tracing thread state.
      */
-    public static DetachedSpan startDetachedSpan(String operation, SpanType type) {
+    public static DetachedSpan detach(String operation, SpanType type) {
         Trace maybeCurrentTrace = currentTrace.get();
         String traceId = maybeCurrentTrace != null
                 ? maybeCurrentTrace.getTraceId() : Tracers.randomId();
@@ -142,8 +142,8 @@ public final class Tracer {
      * Opens a new {@link SpanType#LOCAL LOCAL} detached span for this thread's call trace,
      * labeled with the provided operation.
      */
-    public static DetachedSpan startDetachedSpan(String operation) {
-        return startDetachedSpan(operation, SpanType.LOCAL);
+    public static DetachedSpan detach(String operation) {
+        return detach(operation, SpanType.LOCAL);
     }
 
     private static Optional<String> getParentSpanId(@Nullable Trace trace) {
@@ -179,7 +179,7 @@ public final class Tracer {
         }
 
         @Override
-        public SpanToken startSpanOnCurrentThread(String operationName, SpanType type) {
+        public SpanToken attach(String operationName, SpanType type) {
             warnIfCompleted("startSpanOnCurrentThread");
             Trace maybeCurrentTrace = currentTrace.get();
             Trace trace = new Trace(sampled, traceId);
@@ -190,7 +190,7 @@ public final class Tracer {
         }
 
         @Override
-        public DetachedSpan startDetachedSpan(String operation, SpanType type) {
+        public DetachedSpan detach(String operation, SpanType type) {
             warnIfCompleted("startDetachedSpan");
             return new DefaultDetachedSpan(operation, type, traceId, Optional.of(openSpan.getSpanId()), sampled);
         }
